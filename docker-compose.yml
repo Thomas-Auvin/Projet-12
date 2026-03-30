@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: projet12-api
+    ports:
+      - "8000:8000"
+    environment:
+      P12_ECON_DB_PATH: /app/data/reference/economics.sqlite
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+    command: uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: projet12-ui
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+    volumes:
+      - ./ui:/app/ui
+    command: uv run streamlit run ui/streamlit_app.py --server.address 0.0.0.0 --server.port 8501
