@@ -1,6 +1,3 @@
-Voici une proposition de **README complet** en français, prête à coller dans `README.md` :
-
-````markdown
 # Projet 12 — Agritech Yield Prediction & Crop Recommendation
 
 Application agritech de **prédiction de rendement agricole** et de **recommandation de culture**.
