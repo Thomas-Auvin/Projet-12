@@ -4,7 +4,6 @@ import sqlite3
 from pathlib import Path
 
 import pandas as pd
-import streamlit as st
 
 ECON_DB_PATH = Path("data/reference/economics.sqlite")
 
@@ -74,7 +73,9 @@ def get_active_prices() -> pd.DataFrame:
     df = load_prices()
     if df.empty:
         return df
-    df = df.sort_values(["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False])
+    df = df.sort_values(
+        ["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False]
+    )
     return df.drop_duplicates(subset=["crop"], keep="first").reset_index(drop=True)
 
 
@@ -82,7 +83,9 @@ def get_active_costs() -> pd.DataFrame:
     df = load_costs()
     if df.empty:
         return df
-    df = df.sort_values(["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False])
+    df = df.sort_values(
+        ["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False]
+    )
     return df.drop_duplicates(subset=["crop"], keep="first").reset_index(drop=True)
 
 

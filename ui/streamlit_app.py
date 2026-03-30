@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
-
 from economics_ui import (
     get_active_costs,
     get_active_prices,
@@ -367,7 +366,9 @@ with tab_economics:
 
         with c2:
             pesticide_cost = st.number_input("Pesticides / ha", min_value=0.0, value=0.0, step=1.0)
-            fertilizer_cost = st.number_input("Fertilisants / ha", min_value=0.0, value=0.0, step=1.0)
+            fertilizer_cost = st.number_input(
+                "Fertilisants / ha", min_value=0.0, value=0.0, step=1.0
+            )
 
         with c3:
             irrigation_cost = st.number_input("Irrigation / ha", min_value=0.0, value=0.0, step=1.0)
