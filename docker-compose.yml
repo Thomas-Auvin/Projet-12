@@ -28,4 +28,6 @@ services:
       API_BASE_URL: http://api:8000
     volumes:
       - ./ui:/app/ui
+      - ./data:/app/data
+
     command: uv run streamlit run ui/streamlit_app.py --server.address 0.0.0.0 --server.port 8501

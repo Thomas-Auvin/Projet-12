@@ -6,6 +6,13 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from economics_ui import (
+    get_active_costs,
+    get_active_prices,
+    upsert_user_costs,
+    upsert_user_price,
+)
+
 API_BASE_URL_DEFAULT = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 
@@ -119,8 +126,9 @@ except ValueError:
     st.error("Rainfall et température doivent être des nombres ou vides.")
     st.stop()
 
-tab_predict, tab_recommend = st.tabs(["🔮 Prédiction", "🏆 Recommandation"])
-
+tab_predict, tab_recommend, tab_economics = st.tabs(
+    ["🔮 Prédiction", "🏆 Recommandation", "💰 Données économiques"]
+)
 with tab_predict:
     st.subheader("Prédire le rendement et la marge d'une culture")
 
@@ -277,3 +285,116 @@ with tab_recommend:
 
         except Exception as e:
             st.error(str(e))
+
+with tab_economics:
+    st.subheader("Données économiques modifiables")
+
+    st.markdown("### Prix actifs par culture")
+    active_prices = get_active_prices()
+    if active_prices.empty:
+        st.warning("Aucun prix trouvé dans la base.")
+    else:
+        st.dataframe(active_prices, width="stretch", hide_index=True)
+
+    st.markdown("### Coûts actifs par culture")
+    active_costs = get_active_costs()
+    if active_costs.empty:
+        st.warning("Aucun coût trouvé dans la base.")
+    else:
+        st.dataframe(active_costs, width="stretch", hide_index=True)
+
+    st.markdown("---")
+    st.markdown("## Modifier / ajouter un prix")
+
+    with st.form("price_form"):
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            crop_price = st.selectbox(
+                "Culture (prix)",
+                ["Maize", "Rice", "Soybean", "Wheat", "Cotton", "Barley", "Cassava"],
+                key="crop_price",
+            )
+            price_value = st.number_input("Prix", min_value=0.0, value=100.0, step=1.0)
+
+        with c2:
+            price_unit = st.selectbox(
+                "Unité",
+                ["usd_per_tonne", "usd_per_kg"],
+                index=0,
+            )
+            currency = st.text_input("Devise", value="USD")
+
+        with c3:
+            observed_at = st.text_input("Date d'observation", value="2026-03-30")
+            market_reference = st.text_input("Marché / référence", value="User override")
+
+        source_name = st.text_input("Source", value="User input")
+        source_note = st.text_area("Note source", value="Manual update from Streamlit")
+
+        submitted_price = st.form_submit_button("Enregistrer le prix")
+
+        if submitted_price:
+            try:
+                upsert_user_price(
+                    crop=crop_price,
+                    price_value=float(price_value),
+                    price_unit=price_unit,
+                    currency=currency.strip() or "USD",
+                    market_reference=market_reference.strip(),
+                    source_name=source_name.strip(),
+                    source_note=source_note.strip(),
+                    observed_at=observed_at.strip(),
+                )
+                st.success("Prix enregistré.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erreur enregistrement prix : {e}")
+
+    st.markdown("---")
+    st.markdown("## Modifier / ajouter des coûts par hectare")
+
+    with st.form("cost_form"):
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            crop_cost = st.selectbox(
+                "Culture (coûts)",
+                ["Maize", "Rice", "Soybean", "Wheat", "Cotton", "Barley", "Cassava"],
+                key="crop_cost",
+            )
+            seed_cost = st.number_input("Semences / ha", min_value=0.0, value=0.0, step=1.0)
+
+        with c2:
+            pesticide_cost = st.number_input("Pesticides / ha", min_value=0.0, value=0.0, step=1.0)
+            fertilizer_cost = st.number_input("Fertilisants / ha", min_value=0.0, value=0.0, step=1.0)
+
+        with c3:
+            irrigation_cost = st.number_input("Irrigation / ha", min_value=0.0, value=0.0, step=1.0)
+            other_cost = st.number_input("Autres coûts / ha", min_value=0.0, value=0.0, step=1.0)
+
+        cost_currency = st.text_input("Devise coûts", value="USD")
+        cost_observed_at = st.text_input("Date coûts", value="2026-03-30")
+        cost_source_name = st.text_input("Source coûts", value="User input")
+        cost_source_note = st.text_area("Note coûts", value="Manual update from Streamlit")
+
+        submitted_cost = st.form_submit_button("Enregistrer les coûts")
+
+        if submitted_cost:
+            try:
+                upsert_user_costs(
+                    crop=crop_cost,
+                    seed_cost_per_ha=float(seed_cost),
+                    pesticide_cost_per_ha=float(pesticide_cost),
+                    fertilizer_cost_per_ha=float(fertilizer_cost),
+                    irrigation_cost_per_ha=float(irrigation_cost),
+                    other_cost_per_ha=float(other_cost),
+                    currency=cost_currency.strip() or "USD",
+                    source_name=cost_source_name.strip(),
+                    source_note=cost_source_note.strip(),
+                    observed_at=cost_observed_at.strip(),
+                )
+                st.success("Coûts enregistrés.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erreur enregistrement coûts : {e}")
