@@ -20,7 +20,7 @@ jobs:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
 
       - name: Sync dependencies
         run: uv sync --frozen
@@ -31,14 +31,8 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check app ui scripts src project_paths.py tests
 
-      - name: Run tests if present
-        shell: bash
-        run: |
-          if [ -d tests ]; then
-            uv run pytest -q
-          else
-            echo "No tests directory found, skipping pytest."
-          fi
+      - name: Run tests
+        run: uv run pytest -q
 
       - name: Build API image
         run: docker build -f Dockerfile.api -t projet12-api:ci .
