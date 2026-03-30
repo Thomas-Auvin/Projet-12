@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import os
 
 import pandas as pd
 import requests
 import streamlit as st
+
 from economics_ui import (
     get_active_costs,
     get_active_prices,
@@ -12,7 +11,10 @@ from economics_ui import (
     upsert_user_price,
 )
 
-API_BASE_URL_DEFAULT = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+API_BASE_URL_DEFAULT = st.secrets.get(
+    "API_BASE_URL",
+    os.getenv("API_BASE_URL", "http://127.0.0.1:8000"),
+)
 
 
 st.set_page_config(
