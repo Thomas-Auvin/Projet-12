@@ -26,7 +26,23 @@ from app.schemas import InputsUsed, PredictResponse, RecommendationItem, Recomme
 
 
 def normalize_crop_name(crop: str) -> str:
-    return crop.strip()
+    crop = crop.strip().lower()
+
+    aliases = {
+        "rice": "Rice",
+        "rice, paddy": "Rice",
+        "soybean": "Soybean",
+        "soybeans": "Soybean",
+        "maize": "Maize",
+        "maize (corn)": "Maize",
+        "corn": "Maize",
+        "wheat": "Wheat",
+        "barley": "Barley",
+        "cotton": "Cotton",
+        "cassava": "Cassava",
+    }
+
+    return aliases.get(crop, crop.title())
 
 
 def normalize_area_name(area: str) -> str:
@@ -220,7 +236,7 @@ def get_crop_profile_reference() -> dict[str, dict[str, float]]:
 
     ref: dict[str, dict[str, float]] = {}
     for _, row in df.iterrows():
-        crop = str(row[crop_col]).strip()
+        crop = normalize_crop_name(str(row[crop_col]))
         if not crop:
             continue
 

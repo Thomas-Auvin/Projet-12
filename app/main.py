@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
-
+from app.services import get_recommendable_crops_model_1, CROP_PROFILE_REFERENCE
 from app.model_loader import (
     MODEL_1_CROP,
     MODEL_1_GENERAL,
@@ -50,6 +50,9 @@ def health() -> HealthResponse:
         model_1_general_loaded=is_model_loaded(MODEL_1_GENERAL),
         model_1_crop_loaded=is_model_loaded(MODEL_1_CROP),
         model_2_loaded=is_model_loaded(MODEL_2),
+        crop_profile_loaded=len(CROP_PROFILE_REFERENCE) > 0,
+        crop_profile_crops=sorted(CROP_PROFILE_REFERENCE.keys()),
+        recommendable_crops_model_1=get_recommendable_crops_model_1(),
     )
 
 

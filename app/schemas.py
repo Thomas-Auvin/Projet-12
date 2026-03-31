@@ -184,3 +184,6 @@ class HealthResponse(BaseModel):
     model_1_general_loaded: bool
     model_1_crop_loaded: bool
     model_2_loaded: bool
+    crop_profile_loaded: bool
+    crop_profile_crops: list[str]
+    recommendable_crops_model_1: list[str]
