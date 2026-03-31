@@ -19,8 +19,10 @@ RUN uv sync --frozen
 COPY app ./app
 COPY scripts ./scripts
 COPY data ./data
+COPY artifacts ./artifacts
 
 RUN mkdir -p /app/artifacts /app/data/reference
+RUN uv run python scripts/init_economics_db.py
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV P12_ECON_DB_PATH=/app/data/reference/economics.sqlite
