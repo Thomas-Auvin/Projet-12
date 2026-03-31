@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
-from app.services import get_recommendable_crops_model_1, CROP_PROFILE_REFERENCE
+
 from app.model_loader import (
     MODEL_1_CROP,
     MODEL_1_GENERAL,
@@ -16,6 +16,8 @@ from app.schemas import (
     RecommendResponse,
 )
 from app.services import (
+    CROP_PROFILE_REFERENCE,
+    get_recommendable_crops_model_1,
     predict_crop_yield,
     recommend_crops_service,
 )
