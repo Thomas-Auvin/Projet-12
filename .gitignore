@@ -11,7 +11,7 @@ wheels/
 
 .ipynb_checkpoints/
 outputs/
-artifacts/
+artifacts/wave2_profile/
 data/interim/
 data/processed/
 mlruns/
