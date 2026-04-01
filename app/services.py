@@ -192,8 +192,7 @@ def build_warning_message(
 
     if autofill_used:
         warnings.append(
-            "Certaines variables climatiques ont été auto-remplies à partir des "
-            "moyennes du pays."
+            "Certaines variables climatiques ont été auto-remplies à partir des moyennes du pays."
         )
 
     if not warnings:
@@ -659,8 +658,7 @@ def predict_crop_yield(
             )
         if not is_area_supported_for_model_2(area):
             raise ValueError(
-                "L'area fournie n'est pas supportée par le modèle secondaire pour "
-                "cette prédiction."
+                "L'area fournie n'est pas supportée par le modèle secondaire pour cette prédiction."
             )
 
         predicted = predict_with_model_2(

@@ -1,5 +1,5 @@
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -19,9 +19,7 @@ def test_init_economics_db_creates_tables(temp_econ_db: Path) -> None:
     with sqlite3.connect(temp_econ_db) as conn:
         tables = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
 
     assert "crop_prices" in tables

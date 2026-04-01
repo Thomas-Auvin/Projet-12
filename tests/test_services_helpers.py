@@ -19,11 +19,7 @@ def test_get_area_climate_reference_from_direct(monkeypatch):
     monkeypatch.setattr(
         services,
         "MODEL_2_META",
-        {
-            "area_climate_reference": {
-                "India": {"rainfall_mm": 900.0, "temperature_celsius": 22.0}
-            }
-        },
+        {"area_climate_reference": {"India": {"rainfall_mm": 900.0, "temperature_celsius": 22.0}}},
     )
 
     ref = services.get_area_climate_reference()
@@ -274,16 +270,12 @@ def test_convert_price_to_usd_per_tonne():
         == 400.0
     )
     assert (
-        services.convert_price_to_usd_per_tonne(
-            {"price_value": 1.2, "price_unit": "usd_per_kg"}
-        )
+        services.convert_price_to_usd_per_tonne({"price_value": 1.2, "price_unit": "usd_per_kg"})
         == 1200.0
     )
 
     with pytest.raises(ValueError, match="Unsupported price unit"):
-        services.convert_price_to_usd_per_tonne(
-            {"price_value": 5.0, "price_unit": "eur_per_tonne"}
-        )
+        services.convert_price_to_usd_per_tonne({"price_value": 5.0, "price_unit": "eur_per_tonne"})
 
 
 def test_compute_economic_outputs_without_price(monkeypatch):

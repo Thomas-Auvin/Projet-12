@@ -179,7 +179,9 @@ def test_predict_crop_yield_raises_when_climate_missing_and_no_autofill(monkeypa
         ),
     )
 
-    with pytest.raises(ValueError, match="Impossible de prédire sans rainfall_mm et temperature_celsius"):
+    with pytest.raises(
+        ValueError, match="Impossible de prédire sans rainfall_mm et temperature_celsius"
+    ):
         services.predict_crop_yield(
             crop="Rice",
             area="India",
@@ -263,7 +265,10 @@ def test_recommend_crops_service_returns_tiered_recommendations(monkeypatch):
     assert result.recommendations[1].source_model == "model_1_general"
     assert result.recommendations[2].source_model == "model_2_recommendation"
 
-    assert result.recommendations[0].recommendation_score >= result.recommendations[1].recommendation_score
+    assert (
+        result.recommendations[0].recommendation_score
+        >= result.recommendations[1].recommendation_score
+    )
     assert result.inputs_used.rainfall_source == "user_input"
     assert result.missing_economic_data_crops == []
 
