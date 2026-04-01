@@ -128,7 +128,7 @@ class PredictResponse(BaseModel):
     estimated_variable_costs: float | None = None
     estimated_gross_margin: float | None = None
 
-    source_model: Literal["model_1_crop", "model_2_recommendation"]
+    source_model: Literal["model_1_crop", "model_1_general", "model_2_recommendation"]
     confidence_level: Literal["high", "medium", "low"]
 
     warning: str | None = None
@@ -156,7 +156,7 @@ class RecommendationItem(BaseModel):
 
     recommendation_score: float = Field(..., ge=0, le=1)
     confidence_level: Literal["high", "medium", "low"]
-    source_model: Literal["model_1_crop", "model_2_recommendation"]
+    source_model: Literal["model_1_crop", "model_1_general", "model_2_recommendation"]
     reason: str
     warning: str | None = None
 

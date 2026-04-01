@@ -33,8 +33,8 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check app ui scripts src project_paths.py tests
 
-      - name: Run tests
-        run: uv run pytest -q
+      - name: Run tests with coverage
+        run: uv run pytest --cov=app --cov=scripts --cov-report=term-missing
 
       - name: Build API image
         run: docker build -f Dockerfile.api -t projet12-api:ci .

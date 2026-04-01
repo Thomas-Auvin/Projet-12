@@ -3,18 +3,25 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
+
 from economics_ui import (
     get_active_costs,
     get_active_prices,
+    get_crop_options,
     upsert_user_costs,
     upsert_user_price,
 )
 
-API_BASE_URL_DEFAULT = st.secrets.get(
-    "API_BASE_URL",
-    os.getenv("API_BASE_URL", "http://127.0.0.1:8000"),
-)
+try:
+    api_base_url_from_secrets = st.secrets["API_BASE_URL"]
+except Exception:
+    api_base_url_from_secrets = None
 
+API_BASE_URL_DEFAULT = (
+    api_base_url_from_secrets
+    or os.getenv("API_BASE_URL")
+    or "http://127.0.0.1:8000"
+)
 
 st.set_page_config(
     page_title="Agritech Advisor",
@@ -45,7 +52,7 @@ def api_post(base_url: str, path: str, payload: dict) -> dict:
     return resp.json()
 
 
-def show_api_status(base_url: str):
+def show_api_status(base_url: str) -> None:
     st.subheader("Statut de l'API")
     try:
         health = api_get(base_url, "/health")
@@ -67,7 +74,7 @@ def format_currency(value):
     return f"${value:,.2f}"
 
 
-def format_number(value, digits=2):
+def format_number(value, digits: int = 2):
     if value is None:
         return "N/A"
     return f"{value:,.{digits}f}"
@@ -126,16 +133,24 @@ except ValueError:
     st.error("Rainfall et température doivent être des nombres ou vides.")
     st.stop()
 
+crop_options = get_crop_options()
+if not crop_options:
+    crop_options = ["Rice"]
+
+default_crop = "Rice" if "Rice" in crop_options else crop_options[0]
+default_crop_index = crop_options.index(default_crop)
+
 tab_predict, tab_recommend, tab_economics = st.tabs(
     ["🔮 Prédiction", "🏆 Recommandation", "💰 Données économiques"]
 )
+
 with tab_predict:
     st.subheader("Prédire le rendement et la marge d'une culture")
 
     crop = st.selectbox(
         "Culture",
-        options=["Rice", "Soybean", "Wheat", "Maize", "Cotton", "Barley", "Cassava"],
-        index=0,
+        options=crop_options,
+        index=default_crop_index,
     )
 
     if st.button("Lancer la prédiction", type="primary"):
@@ -237,7 +252,7 @@ with tab_recommend:
             if not recs:
                 st.warning("Aucune recommandation retournée.")
             else:
-                recs_df = pd.DataFrame(recs)
+                recs_df_raw = pd.DataFrame(recs)
 
                 ordered_cols = [
                     "crop",
@@ -253,11 +268,35 @@ with tab_recommend:
                     "warning",
                     "reason",
                 ]
-                available_cols = [c for c in ordered_cols if c in recs_df.columns]
-                recs_df = recs_df[available_cols]
+                available_cols = [c for c in ordered_cols if c in recs_df_raw.columns]
+                recs_df = recs_df_raw[available_cols].copy()
 
                 st.markdown("### Top recommandations")
                 st.dataframe(recs_df, width="stretch", hide_index=True)
+
+                if "estimated_gross_margin" in recs_df_raw.columns:
+                    chart_df = (
+                        recs_df_raw[["crop", "estimated_gross_margin"]]
+                        .dropna(subset=["estimated_gross_margin"])
+                        .copy()
+                        .sort_values("estimated_gross_margin", ascending=False)
+                        .set_index("crop")
+                    )
+                    if not chart_df.empty:
+                        st.markdown("### Graphique des marges brutes estimées")
+                        st.bar_chart(chart_df)
+
+                elif "estimated_revenue" in recs_df_raw.columns:
+                    chart_df = (
+                        recs_df_raw[["crop", "estimated_revenue"]]
+                        .dropna(subset=["estimated_revenue"])
+                        .copy()
+                        .sort_values("estimated_revenue", ascending=False)
+                        .set_index("crop")
+                    )
+                    if not chart_df.empty:
+                        st.markdown("### Graphique des revenus estimés")
+                        st.bar_chart(chart_df)
 
                 best = recs[0]
                 st.markdown("### Recommandation principale")
@@ -288,6 +327,10 @@ with tab_recommend:
 
 with tab_economics:
     st.subheader("Données économiques modifiables")
+    st.caption(
+        "Les cultures sans prix actif ne seront pas recommandées tant qu'un prix n'aura pas "
+        "été saisi. En revanche, elles peuvent être préparées ici pour une utilisation future."
+    )
 
     st.markdown("### Prix actifs par culture")
     active_prices = get_active_prices()
@@ -312,7 +355,7 @@ with tab_economics:
         with c1:
             crop_price = st.selectbox(
                 "Culture (prix)",
-                ["Maize", "Rice", "Soybean", "Wheat", "Cotton", "Barley", "Cassava"],
+                options=crop_options,
                 key="crop_price",
             )
             price_value = st.number_input("Prix", min_value=0.0, value=100.0, step=1.0)
@@ -360,7 +403,7 @@ with tab_economics:
         with c1:
             crop_cost = st.selectbox(
                 "Culture (coûts)",
-                ["Maize", "Rice", "Soybean", "Wheat", "Cotton", "Barley", "Cassava"],
+                options=crop_options,
                 key="crop_cost",
             )
             seed_cost = st.number_input("Semences / ha", min_value=0.0, value=0.0, step=1.0)
@@ -368,7 +411,10 @@ with tab_economics:
         with c2:
             pesticide_cost = st.number_input("Pesticides / ha", min_value=0.0, value=0.0, step=1.0)
             fertilizer_cost = st.number_input(
-                "Fertilisants / ha", min_value=0.0, value=0.0, step=1.0
+                "Fertilisants / ha",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
             )
 
         with c3:

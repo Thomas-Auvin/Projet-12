@@ -8,6 +8,36 @@ from typing import Any
 DEFAULT_ECON_DB_PATH = Path(os.getenv("P12_ECON_DB_PATH", "data/reference/economics.sqlite"))
 
 
+def normalize_crop_name(crop: str) -> str:
+    crop = crop.strip().lower()
+
+    aliases = {
+        "rice": "Rice",
+        "rice, paddy": "Rice",
+        "soybean": "Soybean",
+        "soybeans": "Soybean",
+        "maize": "Maize",
+        "maize (corn)": "Maize",
+        "corn": "Maize",
+        "wheat": "Wheat",
+        "barley": "Barley",
+        "cotton": "Cotton",
+        "cassava": "Cassava",
+        "potatoes": "Potatoes",
+        "potato": "Potatoes",
+        "sorghum": "Sorghum",
+        "sweet potatoes": "Sweet Potatoes",
+        "sweet potato": "Sweet Potatoes",
+        "plantains and others": "Plantains And Others",
+        "plantains & others": "Plantains And Others",
+        "plantains": "Plantains And Others",
+        "yams": "Yams",
+        "yam": "Yams",
+    }
+
+    return aliases.get(crop, crop.title())
+
+
 def get_econ_db_path() -> Path:
     path = DEFAULT_ECON_DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)

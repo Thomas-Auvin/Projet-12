@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.economics_store import get_conn, init_economics_db
+from app.economics_store import get_conn, init_economics_db, normalize_crop_name
 
 DEFAULT_PRICE_ROWS = [
     {
@@ -50,12 +50,35 @@ DEFAULT_PRICE_ROWS = [
     },
     {
         "crop": "Cotton",
-        "price_value": 1630.0,  # 1.63 USD/kg -> 1630 USD/t
+        "price_value": 1630.0,
         "price_unit": "usd_per_tonne",
         "currency": "USD",
         "market_reference": "World Bank Pink Sheet - Cotton",
         "source_name": "World Bank Pink Sheet March 2026",
         "source_note": "February 2026 monthly average converted from USD/kg to USD/t",
+        "observed_at": "2026-02-01",
+    },
+    {
+        "crop": "Sorghum",
+        "price_value": 142.42,
+        "price_unit": "usd_per_tonne",
+        "currency": "USD",
+        "market_reference": "USDA NASS Agricultural Prices - Sorghum Grain",
+        "source_name": "USDA NASS Agricultural Prices March 2026",
+        "source_note": "February 2026 U.S. average: 6.46 USD/cwt, converted to USD/t",
+        "observed_at": "2026-02-01",
+    },
+    {
+        "crop": "Plantains And Others",
+        "price_value": 1210.0,
+        "price_unit": "usd_per_tonne",
+        "currency": "USD",
+        "market_reference": "World Bank Pink Sheet - Bananas, U.S.",
+        "source_name": "World Bank Pink Sheet March 2026",
+        "source_note": (
+            "February 2026 monthly average, proxy based on bananas U.S. import price "
+            "because no dedicated current plantain benchmark is available in the same source family"
+        ),
         "observed_at": "2026-02-01",
     },
 ]
@@ -68,6 +91,11 @@ DEFAULT_COST_ROWS = [
     {"crop": "Cotton"},
     {"crop": "Barley"},
     {"crop": "Cassava"},
+    {"crop": "Potatoes"},
+    {"crop": "Sorghum"},
+    {"crop": "Sweet Potatoes"},
+    {"crop": "Plantains And Others"},
+    {"crop": "Yams"},
 ]
 
 
@@ -88,7 +116,7 @@ def main() -> None:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 1)
                 """,
                 (
-                    row["crop"],
+                    normalize_crop_name(row["crop"]),
                     row["price_value"],
                     row["price_unit"],
                     row["currency"],
@@ -112,7 +140,7 @@ def main() -> None:
                           'Placeholder values to be edited by the user',
                           '2026-03-30', 1, 0, 1)
                 """,
-                (row["crop"],),
+                (normalize_crop_name(row["crop"]),),
             )
 
     print("Economics DB initialized successfully.")

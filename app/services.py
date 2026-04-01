@@ -158,6 +158,11 @@ def build_confidence_level(
             return "medium"
         return "low"
 
+    if source_model == "model_1_general":
+        if not autofill_used:
+            return "medium"
+        return "low"
+
     if crop_support_count >= 1000 and not autofill_used:
         return "medium"
     return "low"
@@ -170,9 +175,16 @@ def build_warning_message(
 ) -> str | None:
     warnings: list[str] = []
 
+    if source_model == "model_1_general":
+        warnings.append(
+            "Cette prédiction repose sur le modèle général du dataset principal, "
+            "car aucun profil enrichi exploitable n'est disponible pour cette culture."
+        )
+
     if source_model == "model_2_recommendation":
         warnings.append(
-            "Cette prédiction repose sur le modèle secondaire, avec un niveau de fiabilité plus faible."
+            "Cette prédiction repose sur le modèle secondaire, avec un niveau de "
+            "fiabilité plus faible."
         )
 
     if crop_support_count < 200:
@@ -180,7 +192,8 @@ def build_warning_message(
 
     if autofill_used:
         warnings.append(
-            "Certaines variables climatiques ont été auto-remplies à partir des moyennes du pays."
+            "Certaines variables climatiques ont été auto-remplies à partir des "
+            "moyennes du pays."
         )
 
     if not warnings:
@@ -317,7 +330,8 @@ def build_model_1_crop_features(
         missing = set(expected_features) - set(row.columns)
         if missing:
             raise ValueError(
-                f"Impossible de construire toutes les colonnes attendues par model_1_crop: {missing}"
+                "Impossible de construire toutes les colonnes attendues par "
+                f"model_1_crop: {missing}"
             )
         row = row[expected_features].copy()
 
@@ -460,17 +474,31 @@ def build_reason_for_primary_recommendation(
         if consistency_adjustment > 1.0:
             reason += " Le modèle secondaire confirme globalement cette estimation."
         elif consistency_adjustment < 1.0:
-            reason += " Le modèle secondaire donne un signal plus divergent ; la recommandation est donc rendue plus prudente."
+            reason += (
+                " Le modèle secondaire donne un signal plus divergent ; "
+                "la recommandation est donc rendue plus prudente."
+            )
         else:
-            reason += " Le modèle secondaire a été consulté comme second avis sans modifier fortement la conclusion."
+            reason += (
+                " Le modèle secondaire a été consulté comme second avis "
+                "sans modifier fortement la conclusion."
+            )
 
     return reason
 
 
+def build_reason_for_general_recommendation(crop: str) -> str:
+    return (
+        f"{crop} est présente dans le dataset principal, mais sans profil enrichi "
+        "exploitable. La recommandation utilise donc le modèle général principal."
+    )
+
+
 def build_reason_for_secondary_recommendation(crop: str) -> str:
     return (
-        f"{crop} est proposée via le modèle secondaire, car elle n'est pas couverte par le modèle principal. "
-        "Cette recommandation doit être lue comme une piste complémentaire et plus exploratoire."
+        f"{crop} est proposée via le modèle secondaire, car elle n'est couverte "
+        "que par le dataset secondaire. Cette recommandation doit être lue comme "
+        "une piste complémentaire et plus exploratoire."
     )
 
 
@@ -579,12 +607,16 @@ def predict_crop_yield(
 
     if rainfall_mm is None or temperature_celsius is None:
         raise ValueError(
-            "Impossible de prédire sans rainfall_mm et temperature_celsius, sauf si une area valide permet l'autoremplissage."
+            "Impossible de prédire sans rainfall_mm et temperature_celsius, sauf si "
+            "une area valide permet l'autoremplissage."
         )
 
     supported_crops_model_1 = {normalize_crop_name(c) for c in get_supported_crops_model_1()}
     recommendable_crops_model_1 = set(get_recommendable_crops_model_1())
+    fallback_crops_model_1_general = supported_crops_model_1 - recommendable_crops_model_1
+
     supported_crops_model_2 = {normalize_crop_name(c) for c in get_supported_crops_model_2()}
+    secondary_only_crops = supported_crops_model_2 - supported_crops_model_1
 
     warning_prefix: str | None = None
 
@@ -600,42 +632,35 @@ def predict_crop_yield(
         error_margin = get_error_margin_model_1_crop() or 0.0
         crop_support_count = get_crop_support_count_model_1(crop)
 
-    elif crop in supported_crops_model_1:
-        if crop in supported_crops_model_2:
-            if area is None:
-                raise ValueError(
-                    f"La culture '{crop}' est listée dans le modèle principal mais aucun profil enrichi exploitable n'est disponible. "
-                    "Elle peut éventuellement être prédite via le modèle secondaire, mais area est alors obligatoire."
-                )
-            if not is_area_supported_for_model_2(area):
-                raise ValueError(
-                    f"La culture '{crop}' ne peut pas être prédite via le modèle principal faute de profil enrichi exploitable, "
-                    "et l'area fournie n'est pas supportée par le modèle secondaire."
-                )
+    elif crop in fallback_crops_model_1_general:
+        predicted = predict_with_model_1_general(
+            rainfall_mm=rainfall_mm,
+            temperature_celsius=temperature_celsius,
+            fertilizer_used=fertilizer_used,
+            irrigation_used=irrigation_used,
+        )
+        if predicted is None:
+            raise ValueError("model_1_general n'est pas chargé.")
 
-            predicted = predict_with_model_2(
-                crop=crop,
-                area=area,
-                rainfall_mm=rainfall_mm,
-                temperature_celsius=temperature_celsius,
-            )
-            source_model = "model_2_recommendation"
-            error_margin = get_error_margin_model_2() or 0.0
-            crop_support_count = get_crop_support_count_model_2(crop)
-            warning_prefix = "Le modèle principal ne pouvait pas être utilisé pour cette culture faute de profil enrichi exploitable. "
-        else:
-            raise ValueError(
-                f"La culture '{crop}' est listée dans le modèle principal, mais aucun profil enrichi exploitable n'est disponible pour reconstruire ses features."
-            )
+        source_model = "model_1_general"
+        error_margin = get_error_margin_model_1_crop() or 0.0
+        crop_support_count = get_crop_support_count_model_1(crop)
+        warning_prefix = (
+            "La culture ne dispose pas d'un profil enrichi exploitable ; "
+            "la prédiction repose sur le modèle général du dataset principal, "
+            "moins spécifique à la culture. "
+        )
 
-    elif crop in supported_crops_model_2:
+    elif crop in secondary_only_crops:
         if area is None:
             raise ValueError(
-                "Cette culture n'est disponible que dans le modèle 2 : area est obligatoire."
+                "Cette culture n'est disponible que dans le modèle secondaire : "
+                "area est obligatoire."
             )
         if not is_area_supported_for_model_2(area):
             raise ValueError(
-                "L'area fournie n'est pas supportée par le modèle secondaire pour cette prédiction."
+                "L'area fournie n'est pas supportée par le modèle secondaire pour "
+                "cette prédiction."
             )
 
         predicted = predict_with_model_2(
@@ -733,15 +758,21 @@ def recommend_crops_service(
 
     if rainfall_mm is None or temperature_celsius is None:
         raise ValueError(
-            "Impossible de recommander sans rainfall_mm et temperature_celsius, sauf si une area valide permet l'autoremplissage."
+            "Impossible de recommander sans rainfall_mm et temperature_celsius, sauf si "
+            "une area valide permet l'autoremplissage."
         )
 
+    supported_crops_model_1 = {normalize_crop_name(c) for c in get_supported_crops_model_1()}
     recommendable_crops_model_1 = get_recommendable_crops_model_1()
-    unusable_crops_model_1 = set(get_unusable_crops_model_1())
+    fallback_crops_model_1_general = sorted(
+        supported_crops_model_1 - set(recommendable_crops_model_1)
+    )
 
     supported_crops_model_2 = sorted(
         {normalize_crop_name(c) for c in get_supported_crops_model_2()}
     )
+    secondary_only_crops = sorted(set(supported_crops_model_2) - supported_crops_model_1)
+
     supported_crops_model_2_set = set(supported_crops_model_2)
     area_ok_for_model_2 = is_area_supported_for_model_2(area)
 
@@ -811,7 +842,8 @@ def recommend_crops_service(
         warning = merge_warnings(
             base_warning,
             (
-                "Le modèle secondaire suggère une estimation sensiblement différente ; interpréter cette recommandation avec prudence."
+                "Le modèle secondaire suggère une estimation sensiblement différente ; "
+                "interpréter cette recommandation avec prudence."
                 if secondary_used and consistency_adjustment < 1.0
                 else None
             ),
@@ -843,14 +875,79 @@ def recommend_crops_service(
         )
 
     # -----------------------------------------------------
-    # 2) Recommandations complémentaires via model_2
+    # 2) Recommandations fallback via model_1_general
     # -----------------------------------------------------
-    if area_ok_for_model_2:
-        secondary_candidate_crops = sorted(
-            set(supported_crops_model_2) - set(recommendable_crops_model_1)
+    general_prediction = None
+    if fallback_crops_model_1_general:
+        general_prediction = predict_with_model_1_general(
+            rainfall_mm=rainfall_mm,
+            temperature_celsius=temperature_celsius,
+            fertilizer_used=fertilizer_used,
+            irrigation_used=irrigation_used,
         )
 
-        for crop in secondary_candidate_crops:
+    if general_prediction is not None:
+        for crop in fallback_crops_model_1_general:
+            error_margin = get_error_margin_model_1_crop() or 0.0
+            crop_support_count = get_crop_support_count_model_1(crop)
+
+            confidence = build_confidence_level(
+                source_model="model_1_general",
+                crop_support_count=crop_support_count,
+                autofill_used=autofill_used,
+            )
+
+            lower_bound, upper_bound = build_bounds(general_prediction, error_margin)
+            economics = compute_economic_outputs(
+                crop=crop,
+                parcel_area_ha=parcel_area_ha,
+                predicted_yield_t_ha=general_prediction,
+                lower_bound_t_ha=lower_bound,
+                upper_bound_t_ha=upper_bound,
+            )
+
+            if economics["estimated_gross_margin"] is None:
+                missing_economic_data_crops.add(crop)
+                continue
+
+            raw_score = float(economics["estimated_gross_margin"])
+
+            warning = merge_warnings(
+                "La culture ne dispose pas d'un profil enrichi exploitable ; "
+                "la recommandation repose sur le modèle général du dataset principal.",
+                build_warning_message(
+                    source_model="model_1_general",
+                    crop_support_count=crop_support_count,
+                    autofill_used=autofill_used,
+                ),
+            )
+
+            candidates.append(
+                {
+                    "tier": 2,
+                    "crop": crop,
+                    "_raw_score": raw_score,
+                    "predicted_yield_t_ha": general_prediction,
+                    "error_margin_t_ha": error_margin,
+                    "lower_bound_t_ha": lower_bound,
+                    "upper_bound_t_ha": upper_bound,
+                    "predicted_yield_total_t": economics["predicted_yield_total_t"],
+                    "sale_price_per_tonne": economics["sale_price_per_tonne"],
+                    "estimated_revenue": economics["estimated_revenue"],
+                    "estimated_variable_costs": economics["estimated_variable_costs"],
+                    "estimated_gross_margin": economics["estimated_gross_margin"],
+                    "confidence_level": confidence,
+                    "source_model": "model_1_general",
+                    "reason": build_reason_for_general_recommendation(crop),
+                    "warning": warning,
+                }
+            )
+
+    # -----------------------------------------------------
+    # 3) Recommandations complémentaires via model_2
+    # -----------------------------------------------------
+    if area_ok_for_model_2:
+        for crop in secondary_only_crops:
             predicted_secondary = predict_with_model_2(
                 crop=crop,
                 area=area,  # type: ignore[arg-type]
@@ -878,32 +975,17 @@ def recommend_crops_service(
                 missing_economic_data_crops.add(crop)
                 continue
 
-            extra_warning = (
-                "Le modèle principal ne pouvait pas être utilisé pour cette culture faute de profil enrichi exploitable."
-                if crop in unusable_crops_model_1
-                else None
-            )
-            warning = merge_warnings(
-                extra_warning,
-                build_warning_message(
-                    source_model="model_2_recommendation",
-                    crop_support_count=crop_support_count,
-                    autofill_used=autofill_used,
-                ),
+            warning = build_warning_message(
+                source_model="model_2_recommendation",
+                crop_support_count=crop_support_count,
+                autofill_used=autofill_used,
             )
 
             raw_score = float(economics["estimated_gross_margin"])
 
-            reason = build_reason_for_secondary_recommendation(crop)
-            if crop in unusable_crops_model_1:
-                reason = (
-                    f"{crop} est bien listée côté modèle principal, mais sans profil enrichi exploitable ; "
-                    "la recommandation repose donc sur le modèle secondaire."
-                )
-
             candidates.append(
                 {
-                    "tier": 2,
+                    "tier": 3,
                     "crop": crop,
                     "_raw_score": raw_score,
                     "predicted_yield_t_ha": predicted_secondary,
@@ -917,14 +999,15 @@ def recommend_crops_service(
                     "estimated_gross_margin": economics["estimated_gross_margin"],
                     "confidence_level": confidence,
                     "source_model": "model_2_recommendation",
-                    "reason": reason,
+                    "reason": build_reason_for_secondary_recommendation(crop),
                     "warning": warning,
                 }
             )
 
     if not candidates:
         raise ValueError(
-            "Aucune recommandation n'a pu être produite avec les modèles chargés, les entrées fournies et les données économiques disponibles."
+            "Aucune recommandation n'a pu être produite avec les modèles chargés, "
+            "les entrées fournies et les données économiques disponibles."
         )
 
     normalize_recommendation_scores(candidates)

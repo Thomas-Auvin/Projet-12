@@ -94,6 +94,11 @@ Projet-12/
 ├── uv.lock
 └── README.md
 ````
+## Diagramme d’architecture
+
+Le diagramme suivant présente l’organisation logique de l’application, les échanges entre l’interface Streamlit, l’API FastAPI, les artefacts de modèles et la base SQLite.
+
+![Diagramme d’architecture du projet](out/architecture/projet_12_diagramme.png)
 
 ---
 
@@ -411,15 +416,7 @@ Workflow :
 
 ## Auteur
 
+Thomas Auvin
 Projet réalisé dans le cadre de la formation **Data Scientist OpenClassrooms**.
 
 ---
-
-```
-
-Tu peux déjà le coller tel quel.  
-Ensuite, la meilleure petite amélioration serait d’ajouter **une section “Démonstration”** avec 3 captures :
-- `/docs`
-- onglet prédiction Streamlit
-- onglet recommandation / données économiques.
-```

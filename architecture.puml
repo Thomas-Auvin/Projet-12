@@ -1,0 +1,76 @@
+@startuml
+title Projet 12 — Architecture applicative (FastAPI + Streamlit + ML + SQLite)
+
+left to right direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor "Utilisateur" as User
+
+node "Machine locale / serveur" as Host {
+
+  node "Docker Compose / exécution locale" as Runtime {
+
+    package "Frontend" {
+      component "Streamlit UI\nui/streamlit_app.py" as Streamlit
+      component "UI économique\nui/economics_ui.py" as EconUI
+    }
+
+    package "Backend API" {
+      component "FastAPI\napp/main.py" as FastAPI
+      component "Schemas\napp/schemas.py" as Schemas
+      component "Services métier\napp/services.py" as Services
+      component "Model Loader\napp/model_loader.py" as Loader
+      component "Economics Store\napp/economics_store.py" as EconStore
+    }
+
+    database "SQLite\n data/reference/economics.sqlite" as SQLiteDB
+
+    folder "Artifacts\nmodèles + métadonnées" as Artifacts
+
+    component "Script d'initialisation\nscripts/init_economics_db.py" as InitDB
+  }
+}
+
+cloud "GitHub" as GitHub {
+  component "GitHub Actions CI\nlint + format + tests + builds Docker" as CI
+}
+
+User --> Streamlit : utilise l'interface
+User --> FastAPI : consulte /docs ou appelle l'API
+
+Streamlit --> FastAPI : /predict, /recommend,\nlecture/édition économique
+EconUI --> FastAPI : actions économiques
+
+FastAPI --> Schemas : validation I/O
+FastAPI --> Services : orchestration métier
+
+Services --> Loader : chargement / accès modèles
+Loader --> Artifacts : .joblib + métadonnées
+
+Services --> EconStore : lecture/écriture économique
+EconStore --> SQLiteDB : SQL
+
+InitDB --> SQLiteDB : initialise les tables\ncrop_prices / crop_costs
+
+CI --> GitHub : déclenchée sur push / PR
+CI --> Runtime : build Docker API + UI
+CI --> FastAPI : tests API
+CI --> Streamlit : vérification build UI
+
+note right of Services
+Logique métier principale :
+- prédiction de rendement
+- recommandation de cultures
+- calcul revenu / coûts / marge brute
+- choix du modèle approprié
+end note
+
+note bottom of SQLiteDB
+Données économiques V1 :
+- prix par culture
+- coûts variables par hectare
+end note
+
+@enduml

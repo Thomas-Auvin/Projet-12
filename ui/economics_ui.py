@@ -1,11 +1,57 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
 import pandas as pd
 
-ECON_DB_PATH = Path("data/reference/economics.sqlite")
+ECON_DB_PATH = Path(os.getenv("P12_ECON_DB_PATH", "data/reference/economics.sqlite"))
+
+KNOWN_CROPS = [
+    "Barley",
+    "Cassava",
+    "Cotton",
+    "Maize",
+    "Plantains And Others",
+    "Potatoes",
+    "Rice",
+    "Sorghum",
+    "Soybean",
+    "Sweet Potatoes",
+    "Wheat",
+    "Yams",
+]
+
+
+def normalize_crop_name(crop: str) -> str:
+    crop = crop.strip().lower()
+
+    aliases = {
+        "rice": "Rice",
+        "rice, paddy": "Rice",
+        "soybean": "Soybean",
+        "soybeans": "Soybean",
+        "maize": "Maize",
+        "maize (corn)": "Maize",
+        "corn": "Maize",
+        "wheat": "Wheat",
+        "barley": "Barley",
+        "cotton": "Cotton",
+        "cassava": "Cassava",
+        "potatoes": "Potatoes",
+        "potato": "Potatoes",
+        "sorghum": "Sorghum",
+        "sweet potatoes": "Sweet Potatoes",
+        "sweet potato": "Sweet Potatoes",
+        "plantains and others": "Plantains And Others",
+        "plantains & others": "Plantains And Others",
+        "plantains": "Plantains And Others",
+        "yams": "Yams",
+        "yam": "Yams",
+    }
+
+    return aliases.get(crop, crop.title())
 
 
 def get_conn() -> sqlite3.Connection:
@@ -74,7 +120,8 @@ def get_active_prices() -> pd.DataFrame:
     if df.empty:
         return df
     df = df.sort_values(
-        ["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False]
+        ["crop", "is_user_override", "updated_at", "id"],
+        ascending=[True, False, False, False],
     )
     return df.drop_duplicates(subset=["crop"], keep="first").reset_index(drop=True)
 
@@ -84,9 +131,24 @@ def get_active_costs() -> pd.DataFrame:
     if df.empty:
         return df
     df = df.sort_values(
-        ["crop", "is_user_override", "updated_at", "id"], ascending=[True, False, False, False]
+        ["crop", "is_user_override", "updated_at", "id"],
+        ascending=[True, False, False, False],
     )
     return df.drop_duplicates(subset=["crop"], keep="first").reset_index(drop=True)
+
+
+def get_crop_options() -> list[str]:
+    crops = set(KNOWN_CROPS)
+
+    prices = get_active_prices()
+    if not prices.empty:
+        crops.update(normalize_crop_name(c) for c in prices["crop"].dropna().astype(str).tolist())
+
+    costs = get_active_costs()
+    if not costs.empty:
+        crops.update(normalize_crop_name(c) for c in costs["crop"].dropna().astype(str).tolist())
+
+    return sorted(crops)
 
 
 def upsert_user_price(
@@ -99,6 +161,8 @@ def upsert_user_price(
     source_note: str,
     observed_at: str,
 ) -> None:
+    crop = normalize_crop_name(crop)
+
     with get_conn() as conn:
         conn.execute(
             """
@@ -141,6 +205,8 @@ def upsert_user_costs(
     source_note: str,
     observed_at: str,
 ) -> None:
+    crop = normalize_crop_name(crop)
+
     with get_conn() as conn:
         conn.execute(
             """
